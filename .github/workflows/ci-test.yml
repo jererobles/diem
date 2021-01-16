@@ -49,7 +49,7 @@ jobs:
         name: find shell/dockerfile changes
         uses: ./.github/actions/matches
         with:
-          pattern: 'Dockerfile$\|.sh$'
+          pattern: 'Dockerfile$\|.*.sh$'
       - id: dev-setup-sh-changes
         name: find dev-setup.sh/base docker image changes
         uses: ./.github/actions/matches
@@ -307,3 +307,42 @@ jobs:
           rustup target add powerpc-unknown-linux-gnu
           cargo xcheck -j ${max_threads} -p transaction-builder -p move-vm-types --target powerpc-unknown-linux-gnu
       - uses: ./.github/actions/build-teardown
+
+  success:
+    name: ci-test-success
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    #always run this job even if needed jobs failed or are skipped.
+    if: ${{ always() }}
+    needs:
+      - dev-setup-sh-test
+      - non-rust-lint
+      - lint
+      - unit-test
+      - e2e-test
+      - crypto-unit-test
+      - build-benchmarks
+      - build-dev
+    steps:
+      - run: |
+          echo dev-setup-sh-test: ${{ needs.dev-setup-sh-test.result }}
+          echo non-rust-lint: ${{ needs.non-rust-lint.result }}
+          echo lint: ${{ needs.lint.result }}
+          echo unit-test: ${{ needs.unit-test.result }}
+          echo e2e-test: ${{ needs.e2e-test.result }}
+          echo crypto-unit-test: ${{ needs.crypto-unit-test.result }}
+          echo build-benchmarks: ${{ needs.build-benchmarks.result }}
+          echo build-dev: ${{ needs.build-dev.result }}
+          success="${{
+            needs.dev-setup-sh-test.result!='failure'
+            && needs.non-rust-lint.result!='failure'
+            && needs.lint.result!='failure'
+            && needs.unit-test.result!='failure'
+            && needs.e2e-test.result!='failure'
+            && needs.crypto-unit-test.result!='failure'
+            && needs.build-benchmarks.result!='failure'
+            && needs.build-dev.result!='failure'
+          }}"
+          if [[ "$success" != "true" ]]; then
+            exit 1;
+          fi
